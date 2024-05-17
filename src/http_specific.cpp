@@ -1,6 +1,7 @@
 #include "http_specific.h"
 #include "common.h"
 #include <sstream>
+#include <fstream>
 
 std::string trim(const std::string &s) {
     auto start = s.find_first_not_of(" \t\r\n");
@@ -8,7 +9,7 @@ std::string trim(const std::string &s) {
     return start == std::string::npos ? "" : s.substr(start, end - start + 1);
 }
 
-std::vector<std::string> split(const std::string& str, char delimiter) {
+std::vector<std::string> split(const std::string &str, char delimiter) {
     std::vector<std::string> output;
     std::string word;
     std::istringstream stream(str);
@@ -20,7 +21,7 @@ std::vector<std::string> split(const std::string& str, char delimiter) {
     return output;
 }
 
-ssize_t parse_request(const char *request, RequestData* out_data) {
+ssize_t parse_request(const char *request, RequestData *out_data) {
     std::vector<std::string> headers;
     std::string body;
 
@@ -61,12 +62,8 @@ ssize_t parse_request(const char *request, RequestData* out_data) {
     return 0;
 }
 
-ssize_t parse_request_line(const std::string& input, RequestLine* out_line) {
+ssize_t parse_request_line(const std::string &input, RequestLine *out_line) {
     auto words = split(input, ' ');
-
-    for (const auto& w : words) {
-        printf("%s\n", w.c_str());
-    }
 
     if (words.size() != 3) {
         out_line->error = "Bad request line format";
@@ -85,7 +82,35 @@ ssize_t parse_request_line(const std::string& input, RequestLine* out_line) {
     return 0;
 }
 
-char* find_resource(const std::string& target) {
+std::string get_resource(const std::string &filename) {
+    std::ifstream file("../resource/" + filename);
 
-    return "";
+    if (!file) {
+        throw std::runtime_error("Could not open resource file: " + filename);
+    }
+
+    std::ostringstream ss;
+    ss << file.rdbuf();
+
+    return ss.str();
+}
+
+std::string get_response_status_line(bool page_exists) {
+    if (page_exists) {
+        return GOOD_START_LINE;
+    }
+
+    return BAD_START_LINE;
+}
+
+std::string generate_response_headers(const std::string& body, bool is_favicon) {
+    std::string headers = "Content-Length: " + std::to_string(body.length()) + "\r\n";
+
+    if (is_favicon) {
+        headers += "Content-Type: image/png\r\n";
+    } else {
+        headers += "Content-Type: text/html; charset=utf-8\r\n";
+    }
+
+    return headers;
 }

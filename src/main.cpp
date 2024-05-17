@@ -35,8 +35,36 @@ void handle_request(int32_t socket_fd) {
         return;
     }
 
-    auto response_body = find_resource(request_line.request_target);
+    auto path_start = request_line.request_target.find_first_not_of('/');
+    std::string path;
+    if (path_start == std::string::npos) {
+        path = "/";
+    } else {
+        path = "/" + request_line.request_target.substr(path_start);
+    }
 
+    std::string filename;
+    bool target_exists = true;
+    bool is_favicon = false;
+
+    if (strcmp(path.c_str(), RequestTarget::index) == 0) {
+        filename = "index.html";
+    } else if (strcmp(path.c_str(), RequestTarget::page2) == 0) {
+        filename = "page2.html";
+    } else if (strcmp(path.c_str(), RequestTarget::favicon) == 0) {
+        filename = "favicon.png";
+        is_favicon = true;
+    } else {
+        filename = "not_found.html";
+        target_exists = false;
+    }
+
+    auto status_line = get_response_status_line(target_exists);
+    auto response_body = get_resource(filename);
+    auto headers = generate_response_headers(response_body, is_favicon);
+
+    std::string response = status_line + headers + "\r\n" + response_body;
+    send(socket_fd, response.c_str(), response.length(), 0);
 
     close(socket_fd);
 }
@@ -72,7 +100,8 @@ int main_app() {
         rcode = poll(fds, 1, 1000); // 1000 means wait 1 second
 
         if (rcode == -1) {
-            std::cerr << "server :: Error in poll\n";
+            std::cerr << "Error in poll\n";
+            stop_flag = true;
             break;
         }
 
@@ -95,27 +124,38 @@ int main_app() {
     return 0;
 }
 
-#define TEST
+//#define TEST
 void test() {
-    const char* buf = "GET /path/file.html HTTP/1.1\r\n"
-                 "Host: www.example.com\r\n"
-                 "Content-Type: application/x-www-form-urlencoded\r\n"
-                 "Content-Length: 27\r\n"
-                 "\r\n"
-                 "field1=value1&field2=value2";
+//    const char* buf = "GET /path/file.html HTTP/1.1\r\n"
+//                 "Host: www.example.com\r\n"
+//                 "Content-Type: application/x-www-form-urlencoded\r\n"
+//                 "Content-Length: 27\r\n"
+//                 "\r\n"
+//                 "field1=value1&field2=value2";
+//
+//    RequestData data{};
+//    parse_request(buf, &data);
+//
+//    printf("Request line: %s\n", data.request_line.c_str());
+//    printf("Headers:\n");
+//    for (const auto& pair : data.headers) {
+//        printf("%s : %s\n", pair.first.c_str(), pair.second.c_str());
+//    }
+//    printf("\n%s\n\n\n", data.body.c_str());
+//
+//    RequestLine request_line{};
+//    parse_request_line(data.request_line, &request_line);
 
-    RequestData data{};
-    parse_request(buf, &data);
+    std::string body;
 
-    printf("Request line: %s\n", data.request_line.c_str());
-    printf("Headers:\n");
-    for (const auto& pair : data.headers) {
-        printf("%s : %s\n", pair.first.c_str(), pair.second.c_str());
-    }
-    printf("\n%s\n\n\n", data.body.c_str());
+    body = get_resource("/");
+    std::cout << body << "\n\n";
 
-    RequestLine request_line{};
-    parse_request_line(data.request_line, &request_line);
+    body = get_resource("/page2");
+    std::cout << body << "\n\n";
+
+    body = get_resource("/apsdf/fd/2302cb4");
+    std::cout << body << "\n\n";
 }
 
 int main() {
