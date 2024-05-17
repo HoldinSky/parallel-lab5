@@ -71,11 +71,7 @@ bool ThreadPool::get_task_from_queue(std::shared_ptr<ThreadTask> &out_task) {
     bool task_obtained = false;
 
     auto wait_condition = [&]() {
-        do {
-            task_obtained = this->tasks.pop(out_task);
-
-            // if this task is in the queue but marked as IN_PROGRESS
-        } while (task_obtained && out_task->is_in_progress);
+        task_obtained = this->tasks.pop(out_task);
 
         return this->terminated || task_obtained || this->is_last_wish;
     };
@@ -88,9 +84,6 @@ bool ThreadPool::get_task_from_queue(std::shared_ptr<ThreadTask> &out_task) {
         }
         return false;
     }
-
-    if (out_task)
-        out_task->is_in_progress = true;
 
     return out_task != nullptr;
 }
